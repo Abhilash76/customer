@@ -13,7 +13,7 @@ from api.metrics import ACTIVE_SESSIONS, TOOL_CALLS_TOTAL, TOOL_LATENCY_SECONDS,
 logger = logging.getLogger("backend.api.websocket")
 router = APIRouter()
 
-async def run_graph_and_stream(websocket: WebSocket, thread_id: str, tenant_id: str, user_id: str, role: str, token: str, content: str = None, resume_command: Command = None, openai_api_key: str | None = None):
+async def run_graph_and_stream(websocket: WebSocket, thread_id: str, tenant_id: str, user_id: str, role: str, token: str, content: str = None, resume_command: Command = None):
     """Run LangGraph and stream output events over WebSocket."""
     config = {"configurable": {"thread_id": thread_id}}
     
@@ -37,7 +37,6 @@ async def run_graph_and_stream(websocket: WebSocket, thread_id: str, tenant_id: 
             "tenant_id": tenant_id,
             "role": role,
             "token": token,
-            "openai_api_key": openai_api_key,
             "conversation_id": conv_id,
             "approval_required": False,
             "pending_approval": None
@@ -47,15 +46,6 @@ async def run_graph_and_stream(websocket: WebSocket, thread_id: str, tenant_id: 
     # We pass either input_data (new run) or resume_command (resuming run)
     target_input = resume_command if resume_command is not None else input_data
 
-    # Ensure resumed threads keep a usable API key (e.g. approval after chat pause)
-    if resume_command is not None and openai_api_key:
-        try:
-            await graph_builder.graph.aupdate_state(
-                config,
-                {"openai_api_key": openai_api_key},
-            )
-        except Exception as e:
-            logger.warning(f"Could not refresh openai_api_key on resume: {e}")
 
     try:
         # Stream events token-by-token and node-by-node
@@ -179,7 +169,6 @@ async def websocket_chat_endpoint(websocket: WebSocket):
                 
             if msg_type == "user_message":
                 content = data.get("content", "")
-                openai_api_key = data.get("openai_api_key") or None
                 # Run the graph and stream events in the background
                 asyncio.create_task(
                     run_graph_and_stream(
@@ -190,12 +179,10 @@ async def websocket_chat_endpoint(websocket: WebSocket):
                         role=role,
                         token=token,
                         content=content,
-                        openai_api_key=openai_api_key,
                     )
                 )
             elif msg_type == "approval_response":
                 approved = data.get("approved", False)
-                openai_api_key = data.get("openai_api_key") or None
                 # Resuming execution directly over WebSocket
                 logger.info(f"Resuming thread {thread_id} via WebSocket approval_response (approved={approved})")
                 await postgres_db.update_approval_status(thread_id, approved, user_id)
@@ -209,7 +196,6 @@ async def websocket_chat_endpoint(websocket: WebSocket):
                         role=role,
                         token=token,
                         resume_command=Command(resume={"approved": approved, "reviewer_id": user_id}),
-                        openai_api_key=openai_api_key,
                     )
                 )
             elif msg_type == "ping":

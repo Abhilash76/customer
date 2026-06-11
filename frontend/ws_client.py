@@ -5,7 +5,7 @@ import logging
 
 logger = logging.getLogger("frontend.ws_client")
 
-async def stream_ws_chat(backend_url: str, token: str, thread_id: str, content: str, openai_api_key: str | None = None):
+async def stream_ws_chat(backend_url: str, token: str, thread_id: str, content: str):
     """Async generator connecting to backend WS and yielding events."""
     uri = f"{backend_url}?token={token}"
     logger.info(f"Connecting websocket to {uri} with thread {thread_id}...")
@@ -18,8 +18,6 @@ async def stream_ws_chat(backend_url: str, token: str, thread_id: str, content: 
                 "thread_id": thread_id,
                 "content": content,
             }
-            if openai_api_key:
-                payload["openai_api_key"] = openai_api_key
             await websocket.send(json.dumps(payload))
             
             # Read streaming events from server
@@ -34,7 +32,7 @@ async def stream_ws_chat(backend_url: str, token: str, thread_id: str, content: 
         logger.error(f"WebSocket client error: {e}")
         yield {"type": "error", "message": f"Connection lost: {str(e)}"}
 
-async def send_ws_approval(backend_url: str, token: str, thread_id: str, approved: bool, openai_api_key: str | None = None):
+async def send_ws_approval(backend_url: str, token: str, thread_id: str, approved: bool):
     """Send approval decision over a temporary WS connection and yield subsequent events."""
     uri = f"{backend_url}?token={token}"
     logger.info(f"Connecting websocket for approval response to {uri}...")
@@ -46,8 +44,6 @@ async def send_ws_approval(backend_url: str, token: str, thread_id: str, approve
                 "thread_id": thread_id,
                 "approved": approved,
             }
-            if openai_api_key:
-                payload["openai_api_key"] = openai_api_key
             await websocket.send(json.dumps(payload))
             
             # Stream the remaining steps until final

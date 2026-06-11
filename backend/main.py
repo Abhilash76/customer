@@ -55,6 +55,7 @@ async def lifespan(app: FastAPI):
     yield
     
     logger.info("Cleaning up application resources...")
+    await graph_builder.cleanup()
     # Disconnect MCP clients
     await orders_mcp_client.close()
     await crm_mcp_client.close()

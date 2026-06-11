@@ -73,7 +73,8 @@ services:
       dockerfile: Dockerfile
     container_name: customer_backend
     environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.1}
       - JWT_SECRET=your-secret-key
       - POSTGRES_URL=postgresql+asyncpg://user:password@postgres:5432/support
       - REDIS_URL=redis://redis:6379/0

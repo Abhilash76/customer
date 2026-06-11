@@ -8,7 +8,6 @@ class AgentState(TypedDict):
     tenant_id: str
     role: str
     token: str # JWT Token passed to MCP servers
-    openai_api_key: Optional[str]  # Per-session key from chat UI (falls back to env)
     tool_calls: Optional[List[Dict[str, Any]]]
     tool_results: Optional[List[Dict[str, Any]]]
     approval_required: bool

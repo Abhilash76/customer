@@ -1,4 +1,5 @@
 import logging
+from contextlib import AsyncExitStack
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from config import settings
@@ -11,6 +12,7 @@ class GraphBuilder:
     def __init__(self):
         self.checkpointer = None
         self.graph = None
+        self._exit_stack = AsyncExitStack()
 
     async def initialize(self):
         """Configure Checkpointer and Compile the StateGraph."""
@@ -19,7 +21,10 @@ class GraphBuilder:
         
         logger.info("Initializing PostgresSaver checkpointer...")
         try:
-            self.checkpointer = AsyncPostgresSaver.from_conn_string(postgres_url)
+            # from_conn_string returns an async context manager in current langgraph versions
+            self.checkpointer = await self._exit_stack.enter_async_context(
+                AsyncPostgresSaver.from_conn_string(postgres_url)
+            )
             await self.checkpointer.setup()
             logger.info("Checkpointer setup successfully completed.")
         except Exception as e:
@@ -81,8 +86,8 @@ class GraphBuilder:
 
     async def cleanup(self):
         """Cleanup connection resources."""
-        if self.checkpointer:
-            # PostgresSaver connection cleanup
-            pass
+        await self._exit_stack.aclose()
+        self.checkpointer = None
+        self.graph = None
 
 graph_builder = GraphBuilder()

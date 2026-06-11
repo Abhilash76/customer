@@ -72,7 +72,7 @@ st.markdown("""
     .badge-support { background-color: #dd6b20; }
     .badge-viewer { background-color: #4a5568; }
 </style>
-""", unsafe_allow_value=True)
+""", unsafe_allow_html=True)
 
 # App Title Banner
 st.markdown("""
@@ -101,23 +101,8 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 if "approval_request" not in st.session_state:
     st.session_state.approval_request = None
-if "openai_api_key" not in st.session_state:
-    st.session_state.openai_api_key = os.getenv("OPENAI_API_KEY", "")
 
-# Sidebar Authentication panel
 with st.sidebar:
-    st.markdown("### 🤖 OpenAI API Key")
-    st.caption("Required for the AI agent. Stored only in your browser session — never saved on the server.")
-    api_key_input = st.text_input(
-        "OpenAI API Key",
-        value=st.session_state.openai_api_key,
-        type="password",
-        placeholder="sk-...",
-        help="Get a key at platform.openai.com. Alternatively set OPENAI_API_KEY in .env for the backend.",
-    )
-    if api_key_input != st.session_state.openai_api_key:
-        st.session_state.openai_api_key = api_key_input.strip()
-
     st.markdown("### 🔑 Authentication & Tenancy")
     
     # Selection of demo users
@@ -183,8 +168,6 @@ with st.sidebar:
 # Check if user is logged in
 if not st.session_state.token:
     st.info("👈 Please select a user profile in the sidebar and log in to start.")
-elif not st.session_state.openai_api_key:
-    st.warning("👈 Enter your OpenAI API key in the sidebar before chatting.")
 else:
     # Helper to execute WebSocket stream wrapper synchronously
     async def run_chat_stream(content):
@@ -209,7 +192,6 @@ else:
                     st.session_state.token,
                     st.session_state.thread_id,
                     content,
-                    openai_api_key=st.session_state.openai_api_key,
                 ):
                     ev_type = event.get("type")
                     
@@ -264,7 +246,6 @@ else:
                     st.session_state.token,
                     st.session_state.thread_id,
                     approved,
-                    openai_api_key=st.session_state.openai_api_key,
                 ):
                     ev_type = event.get("type")
                     

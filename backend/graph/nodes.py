@@ -2,7 +2,7 @@ import json
 import logging
 import time
 from typing import Dict, Any, List
-from langchain_openai import ChatOpenAI
+from langchain_ollama import ChatOllama
 from langchain_core.messages import AIMessage, ToolMessage, HumanMessage
 from langgraph.types import interrupt
 from graph.state import AgentState
@@ -12,18 +12,12 @@ from config import settings
 
 logger = logging.getLogger("backend.graph.nodes")
 
-def _get_llm(api_key: str | None = None) -> ChatOpenAI:
-    """Lazy-init LLM. Prefers per-session key from chat, then env OPENAI_API_KEY."""
-    resolved_key = api_key or settings.OPENAI_API_KEY or None
-    if not resolved_key:
-        raise ValueError(
-            "OpenAI API key is required. Enter it in the chat sidebar or set OPENAI_API_KEY in .env."
-        )
-    return ChatOpenAI(
-        model="gpt-4o",
+def _get_llm() -> ChatOllama:
+    """Lazy-init LLM using Ollama. Connects to OLLAMA_BASE_URL with OLLAMA_MODEL."""
+    return ChatOllama(
+        model=settings.OLLAMA_MODEL,
+        base_url=settings.OLLAMA_BASE_URL,
         temperature=0,
-        streaming=True,
-        api_key=resolved_key,
     )
 
 async def llm_node(state: AgentState) -> Dict[str, Any]:
@@ -34,15 +28,8 @@ async def llm_node(state: AgentState) -> Dict[str, Any]:
     # Filter tools dynamically based on user role
     tools = get_tools_for_role(role)
     
-    # Bind tools to LLM (key from WebSocket chat UI or server env)
-    try:
-        llm = _get_llm(state.get("openai_api_key"))
-    except ValueError as e:
-        return {
-            "messages": [AIMessage(content=str(e))],
-            "current_step": "llm_error",
-            "final_answer": str(e),
-        }
+    # Bind tools to LLM
+    llm = _get_llm()
     llm_with_tools = llm.bind_tools(tools) if tools else llm
 
     logger.info(f"Invoking LLM for user {state.get('user_id')} with role {role}...")
